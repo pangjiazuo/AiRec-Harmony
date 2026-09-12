@@ -1,0 +1,24 @@
+{
+  "captured": "2026-09-12",
+  "environment": "Isolated fixture; no upstream camera or event images",
+  "pages": [
+    "live",
+    "recordings",
+    "settings"
+  ],
+  "capture": "HDC native screenCap",
+  "images": [
+    {
+      "file": "live.png",
+      "sha256": "91ab63bd52ef3dd53fa71a4aa505b8afe199c59db035a272533111bc7980fa08"
+    },
+    {
+      "file": "recordings.png",
+      "sha256": "97ff746ba927dc5b1f7693a18f97137dcdd668c0bc19aae2e5e3f7fb95ab2609"
+    },
+    {
+      "file": "settings.png",
+      "sha256": "e484ca00500f5788e8bd9c83b3aaefe59044247d4b26a5e0df9b4b0b080d9b38"
+    }
+  ]
+}

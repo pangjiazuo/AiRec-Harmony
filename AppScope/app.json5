@@ -1,0 +1,10 @@
+{
+  "app": {
+    "bundleName": "com.neardi.recorder",
+    "vendor": "Neardi Recorder",
+    "versionCode": 2,
+    "versionName": "1.1.0",
+    "icon": "$media:app_icon",
+    "label": "$string:app_name"
+  }
+}

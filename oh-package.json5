@@ -1,0 +1,8 @@
+{
+  "name": "smart-recorder-harmony",
+  "version": "1.0.0",
+  "modelVersion": "6.0.0",
+  "description": "RK3399 智能录像机 HarmonyOS 原生客户端",
+  "dependencies": {},
+  "devDependencies": {}
+}

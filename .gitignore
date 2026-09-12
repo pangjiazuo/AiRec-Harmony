@@ -1,0 +1,50 @@
+# Build and Release Folders
+bin-debug/
+bin-release/
+[Oo]bj/
+[Bb]in/
+
+# Other files and folders
+.settings/
+
+# Executables
+*.swf
+*.air
+*.ipa
+*.apk
+
+# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
+# should NOT be excluded as they contain compiler settings and other important
+# information for Eclipse / Flash Builder.
+
+# Existing application ignore rules
+.idea/
+.hvigor/
+.ohpm/
+oh_modules/
+node_modules/
+**/build/
+local.properties
+dist/
+.local/
+*.p12
+*.p7b
+*.csr
+*.cer
+*.keystore
+*.jks
+build-profile.signing.json5
+__pycache__/
+*.pyc
+
+# Local files and signing material
+.local/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_ed25519*
+id_rsa*

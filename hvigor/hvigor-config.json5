@@ -1,0 +1,11 @@
+{
+  "modelVersion": "6.0.0",
+  "dependencies": {},
+  "execution": {
+    "daemon": false,
+    "parallel": false,
+    "optimizationStrategy": "memory"
+  },
+  "logging": { "level": "info" },
+  "nodeOptions": { "maxOldSpaceSize": 3072 }
+}

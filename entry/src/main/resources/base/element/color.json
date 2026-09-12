@@ -1,0 +1,12 @@
+{
+  "color": [
+    { "name": "start_window_background", "value": "#F1F3F5" },
+    { "name": "recorder_bg", "value": "#F1F3F5" },
+    { "name": "recorder_card", "value": "#FFFFFF" },
+    { "name": "recorder_text", "value": "#182431" },
+    { "name": "recorder_secondary", "value": "#667281" },
+    { "name": "recorder_line", "value": "#E5E8EC" },
+    { "name": "recorder_brand", "value": "#0A59F7" },
+    { "name": "recorder_preview", "value": "#E7EBF0" }
+  ]
+}

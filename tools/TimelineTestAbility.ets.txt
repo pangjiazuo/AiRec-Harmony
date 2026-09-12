@@ -1,0 +1,57 @@
+import { UIAbility, ConfigurationConstant, Want } from '@kit.AbilityKit';
+import { window } from '@kit.ArkUI';
+import { fileIo } from '@kit.CoreFileKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+import { runLogicChecks, LogicCheckResult } from '../data/LogicChecks';
+import { RecorderApi } from '../data/RecorderApi';
+import { localDay } from '../model/Timeline';
+
+interface NativeTimelineCheck { channel: number; recordings: number; events: number; error: string; }
+interface NativeTimelineReport { logic: LogicCheckResult[]; api: NativeTimelineCheck[]; }
+
+// 此入口只复制到 .local 隔离测试包，不进入生产 HAP。
+export default class EntryAbility extends UIAbility {
+  private testStage?: window.WindowStage;
+  private testing: boolean = false;
+  onCreate(want: Want): void {
+    AppStorage.setOrCreate('recorderForeground', true);
+    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
+    if (want.parameters?.['runChecks'] === true) this.runChecks();
+  }
+  onWindowStageCreate(stage: window.WindowStage): void {
+    this.testStage = stage;
+    stage.getMainWindow().then((main: window.Window) => main.setPreferredOrientation(window.Orientation.AUTO_ROTATION)).catch(() => {});
+    stage.loadContent('pages/Index').catch((error: Error) => hilog.error(0x0100, 'RecorderTest', '%{public}s', error.message));
+  }
+  onNewWant(want: Want): void {
+    if (want.parameters?.['runChecks'] === true) this.runChecks();
+    if (typeof want.parameters?.['testWide'] === 'boolean') {
+      const wide = want.parameters?.['testWide'] === true;
+      this.testStage?.setCustomDensity(wide ? 1 : 3.5);
+      this.testStage?.getMainWindow().then((main: window.Window): void => {
+        main.setPreferredOrientation(wide ? window.Orientation.LANDSCAPE : window.Orientation.PORTRAIT).catch(() => {});
+      });
+    }
+  }
+  private async runChecks(): Promise<void> {
+    if (this.testing) return;
+    this.testing = true;
+    const report: NativeTimelineReport = { logic: runLogicChecks(), api: [] };
+    const api = new RecorderApi();
+    const day = localDay(new Date());
+    for (let channel = 1; channel <= 5; channel++) {
+      try {
+        const data = await api.getTimeline(channel, day);
+        report.api.push({ channel, recordings: data.recordings.length, events: data.event_segments.length, error: '' });
+      } catch (error) {
+        report.api.push({ channel, recordings: 0, events: 0, error: (error as Error).message });
+      }
+    }
+    api.cancelAll();
+    const file = fileIo.openSync(`${this.context.filesDir}/timeline-checks.json`, fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC);
+    try { fileIo.writeSync(file.fd, JSON.stringify(report)); } finally { fileIo.closeSync(file); this.testing = false; }
+    hilog.info(0x0100, 'RecorderTest', 'Timeline checks saved: %{public}s', JSON.stringify(report));
+  }
+  onForeground(): void { AppStorage.setOrCreate('recorderForeground', true); }
+  onBackground(): void { AppStorage.setOrCreate('recorderForeground', false); }
+}
