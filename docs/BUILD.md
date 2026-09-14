@@ -59,7 +59,7 @@ $Hdc = 'C:\Program Files\Huawei\DevEco Studio\sdk\default\openharmony\toolchains
 
 # 将地址换成上一步列出的目标；以下地址用于本工程独立测试模拟器。
 $RecorderTarget = '127.0.0.1:12345'
-& $Hdc -t $RecorderTarget install '.\dist\smart-recorder-1.1.0-debug-unsigned.hap'
+& $Hdc -t $RecorderTarget install '.\dist\smart-recorder-1.0.0-debug-unsigned.hap'
 if ($LASTEXITCODE -ne 0) { throw 'HAP 安装失败' }
 & $Hdc -t $RecorderTarget shell aa start -a EntryAbility -b com.neardi.recorder
 ```
