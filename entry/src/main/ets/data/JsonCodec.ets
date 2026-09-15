@@ -124,10 +124,13 @@ export function parseConfig(raw: JsonObject): RecorderConfig {
     requireFields(d, [], ['threshold_seconds', 'confidence', 'sample_interval', 'lost_tolerance_seconds'], ['enabled'], '检测配置');
     if (!Array.isArray(d['categories']) || (d['categories'] as Object[]).some((v: Object): boolean =>
       typeof v !== 'string' || !['person', 'vehicle', 'animal'].includes(v as string))) throw new Error('检测类别配置无效');
+    const privacy = c['privacy'] === undefined ? undefined : objectValue(c['privacy']);
+    if (privacy) requireFields(privacy, [], [], ['face_mosaic', 'plate_mosaic'], '隐私配置');
     const crop = numbers(c['crop']);
     if (crop.length !== 4 || crop.some((v: number): boolean => !Number.isFinite(v))) throw new Error('视频裁剪配置无效');
     return { id: numberValue(c['id']), name: textValue(c['name']), enabled: boolValue(c['enabled']), source: textValue(c['source']),
       crop: numbers(c['crop']), width: numberValue(c['width']), height: numberValue(c['height']), fps: numberValue(c['fps']), preview_fps: numberValue(c['preview_fps']),
+      privacy: privacy ? { face_mosaic: boolValue(privacy['face_mosaic']), plate_mosaic: boolValue(privacy['plate_mosaic']) } : undefined,
       recording: { enabled: boolValue(r['enabled']), segment_minutes: numberValue(r['segment_minutes']) },
       detection: { enabled: boolValue(d['enabled']), categories: strings(d['categories']), threshold_seconds: numberValue(d['threshold_seconds']),
         confidence: numberValue(d['confidence']), sample_interval: numberValue(d['sample_interval']), lost_tolerance_seconds: numberValue(d['lost_tolerance_seconds']) } };

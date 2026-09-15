@@ -41,10 +41,12 @@ export interface DetectionConfig {
   enabled: boolean; categories: string[]; threshold_seconds: number; confidence: number;
   sample_interval: number; lost_tolerance_seconds: number;
 }
+export interface PrivacyConfig { face_mosaic: boolean; plate_mosaic: boolean; }
+export interface PrivacyPatch { face_mosaic?: boolean; plate_mosaic?: boolean; }
 export interface ChannelConfig {
   id: number; name: string; enabled: boolean; source: string; crop: number[];
   width: number; height: number; fps: number; preview_fps: number;
-  recording: RecordingConfig; detection: DetectionConfig;
+  recording: RecordingConfig; detection: DetectionConfig; privacy?: PrivacyConfig;
 }
 export interface StorageConfig { target_id: string; max_gb: number; min_free_gb: number; }
 /** raw 保留后端扩展字段，客户端保存时不会重建整个配置。 */
@@ -56,7 +58,7 @@ export interface DetectionPatch {
 }
 export interface ChannelPatch {
   id: number; name?: string; enabled?: boolean; width?: number; height?: number; fps?: number; preview_fps?: number;
-  recording?: RecordingPatch; detection?: DetectionPatch;
+  recording?: RecordingPatch; detection?: DetectionPatch; privacy?: PrivacyPatch;
 }
 export interface StoragePatch { target_id?: string; max_gb?: number; min_free_gb?: number; }
 export interface ConfigChanges { channels?: ChannelPatch[]; storage?: StoragePatch; }

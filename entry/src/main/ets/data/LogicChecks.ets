@@ -32,6 +32,13 @@ export function runLogicChecks(): LogicCheckResult[] {
     try { check(); results.push({ name: name, passed: true, error: '' }); }
     catch (error) { results.push({ name: name, passed: false, error: (error as Error).message }); }
   };
+  run('隐私开关独立合并且保留其他通道', (): void => {
+    const before = fixture();
+    const updated = mergeConfigChanges(before, { channels: [{ id: 1, privacy: { face_mosaic: true, plate_mosaic: false } }] });
+    assert(updated.channels[0].privacy?.face_mosaic === true, '人脸开关丢失');
+    assert(updated.channels[0].privacy?.plate_mosaic === false, '车牌开关丢失');
+    assert(updated.channels[1].privacy === undefined && before.channels[0].privacy === undefined, '修改影响了其他通道或原配置');
+  });
   run('地址规范化与同源媒体', (): void => {
     assert(normalizeEndpoint(' 192.168.10.172:8080/ ') === 'http://192.168.10.172:8080', '默认地址解析失败');
     const api = new RecorderApi('http://127.0.0.1:18080');

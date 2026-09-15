@@ -23,6 +23,12 @@ export function mergeConfigChanges(latest: RecorderConfig, changes: ConfigChange
     if (patch.height !== undefined) c['height'] = patch.height;
     if (patch.fps !== undefined) c['fps'] = patch.fps;
     if (patch.preview_fps !== undefined) c['preview_fps'] = patch.preview_fps;
+    if (patch.privacy) {
+      const p = objectValue(c['privacy']);
+      if (patch.privacy.face_mosaic !== undefined) p['face_mosaic'] = patch.privacy.face_mosaic;
+      if (patch.privacy.plate_mosaic !== undefined) p['plate_mosaic'] = patch.privacy.plate_mosaic;
+      c['privacy'] = p;
+    }
     if (patch.recording) {
       const r = objectValue(c['recording']);
       if (patch.recording.enabled !== undefined) r['enabled'] = patch.recording.enabled;

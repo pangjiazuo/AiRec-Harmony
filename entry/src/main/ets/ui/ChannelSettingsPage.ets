@@ -2,14 +2,17 @@ import { RecorderState } from './RecorderState';
 import { Palette, Notice } from './Theme';
 import { RecorderApi } from '../data/RecorderApi';
 import { mergeConfigChanges } from '../data/ConfigMerge';
-import { ChannelConfig, RecorderConfig, ChannelPatch, RecordingPatch, DetectionPatch } from '../model/Models';
+import { ChannelConfig, RecorderConfig, ChannelPatch, RecordingPatch, DetectionPatch, PrivacyPatch } from '../model/Models';
 
 @Observed
 class ChannelDraft {
+  faceMosaic: boolean = false; plateMosaic: boolean = false; privacySupported: boolean = false;
   name: string; enabled: boolean; width: string; height: string; fps: string; preview: string;
   recording: boolean; minutes: number; detecting: boolean; person: boolean; vehicle: boolean; animal: boolean;
   threshold: string; confidence: string; interval: string; tolerance: string; copyOthers: boolean = false;
   constructor(channel: ChannelConfig) {
+    this.faceMosaic = channel.privacy?.face_mosaic ?? false; this.plateMosaic = channel.privacy?.plate_mosaic ?? false;
+    this.privacySupported = channel.privacy !== undefined;
     this.name = channel.name; this.enabled = channel.enabled; this.width = channel.width.toString(); this.height = channel.height.toString();
     this.fps = channel.fps.toString(); this.preview = channel.preview_fps.toString(); this.recording = channel.recording.enabled;
     this.minutes = channel.recording.segment_minutes; this.detecting = channel.detection.enabled;
@@ -30,6 +33,8 @@ const channelDrafts: Map<string, ChannelSession> = new Map<string, ChannelSessio
 function rebaseDraft(draft: ChannelDraft, original: ChannelConfig, updated: ChannelConfig): ChannelDraft {
   const before = new ChannelDraft(original); const after = new ChannelDraft(updated);
   // 保留未完成的文本输入，未修改字段使用另一客户端或批量应用后的最新值。
+  if (draft.faceMosaic !== before.faceMosaic) after.faceMosaic = draft.faceMosaic;
+  if (draft.plateMosaic !== before.plateMosaic) after.plateMosaic = draft.plateMosaic;
   if (draft.name !== before.name) after.name = draft.name;
   if (draft.enabled !== before.enabled) after.enabled = draft.enabled;
   if (draft.width !== before.width) after.width = draft.width;
@@ -69,6 +74,10 @@ function changedPatch(id: number, draft: ChannelDraft, original: ChannelConfig):
   if (draft.enabled !== original.enabled) patch.enabled = draft.enabled;
   if (width !== original.width) patch.width = width; if (height !== original.height) patch.height = height;
   if (fps !== original.fps) patch.fps = fps; if (preview !== original.preview_fps) patch.preview_fps = preview;
+  const privacy: PrivacyPatch = {};
+  if (draft.faceMosaic !== (original.privacy?.face_mosaic ?? false)) privacy.face_mosaic = draft.faceMosaic;
+  if (draft.plateMosaic !== (original.privacy?.plate_mosaic ?? false)) privacy.plate_mosaic = draft.plateMosaic;
+  if (Object.keys(privacy).length > 0) patch.privacy = privacy;
   const recording: RecordingPatch = {};
   if (draft.recording !== original.recording.enabled) recording.enabled = draft.recording;
   if (draft.minutes !== original.recording.segment_minutes) recording.segment_minutes = draft.minutes;
@@ -86,6 +95,7 @@ function changedPatch(id: number, draft: ChannelDraft, original: ChannelConfig):
 function copiedPatch(id: number, draft: ChannelDraft): ChannelPatch {
   return { id: id, width: requiredNumber(draft.width, '宽度'), height: requiredNumber(draft.height, '高度'),
     fps: requiredNumber(draft.fps, '录像帧率'), preview_fps: requiredNumber(draft.preview, '预览帧率'),
+    privacy: draft.privacySupported ? { face_mosaic: draft.faceMosaic, plate_mosaic: draft.plateMosaic } : undefined,
     recording: { enabled: draft.recording, segment_minutes: draft.minutes },
     detection: { enabled: draft.detecting, categories: categories(draft), threshold_seconds: requiredNumber(draft.threshold, '停留阈值'),
       confidence: requiredNumber(draft.confidence, '置信度'), sample_interval: requiredNumber(draft.interval, '侦测间隔'),
@@ -103,10 +113,11 @@ export struct ChannelSettingsPage {
   private request?: RecorderApi = undefined;
   private generation: number = 0;
   private mounted: boolean = false;
+  private cancelPrivacy?: () => void = undefined;
   private readonly minutes: number[] = [1, 3, 5, 10];
 
   aboutToAppear(): void { this.mounted = true; this.saving = false; this.load(); }
-  aboutToDisappear(): void { this.mounted = false; this.generation++; this.request?.cancelAll(); }
+  aboutToDisappear(): void { this.cancelPrivacy?.(); this.cancelPrivacy = undefined; this.mounted = false; this.generation++; this.request?.cancelAll(); }
   private channelChanged(): void { this.load(); }
   private draftKey(): string { return this.state.endpoint + '#' + this.channelId; }
   private pageIsCurrent(generation: number, key: string): boolean {
@@ -138,10 +149,30 @@ export struct ChannelSettingsPage {
     const generation = this.generation; const key = this.draftKey();
     this.getUIContext().showAlertDialog({
       title: '应用到其他通道',
-      message: '目标：' + this.otherNames() + '。\n复制画质、录像与检测设置，保留各路名称、通道开关和接线。点击“保存设置”后才会应用。',
+      message: '目标：' + this.otherNames() + '。\n复制画质、录像、检测与马赛克设置。马赛克开启后会严重降低性能，并永久写入新录像。保留各路名称、通道开关和接线。点击“保存设置”后才会应用。',
       primaryButton: { value: '取消', action: (): void => {} },
       secondaryButton: { value: '加入待保存', action: (): void => {
         if (this.draft && this.pageIsCurrent(generation, key)) this.draft.copyOthers = true;
+      } }
+    });
+  }
+  private changePrivacy(face: boolean, enabled: boolean): void {
+    const draft = this.draft; if (!draft || this.saving || this.loading || !draft.privacySupported) return;
+    if (!enabled) { if (face) draft.faceMosaic = false; else draft.plateMosaic = false; return; }
+    const generation = this.generation; const key = this.draftKey();
+    // 原生 Toggle 会先切换视觉状态；取消时显式回写，避免显示已开但草稿未开的错位。
+    if (face) draft.faceMosaic = true; else draft.plateMosaic = true;
+    const rollback = (): void => { if (face) draft.faceMosaic = false; else draft.plateMosaic = false; this.cancelPrivacy = undefined; };
+    this.cancelPrivacy = rollback;
+    this.getUIContext().showAlertDialog({ title: '开启马赛克？',
+      message: '开启后会严重降低性能，可能降低预览与录像帧率。马赛克会永久写入新录像，不能恢复原画面；已有录像不会改变。采用间隔检测与逐帧跟踪，快速新目标可能短暂漏遮挡。',
+      cancel: rollback,
+      primaryButton: { value: '取消', action: rollback },
+      secondaryButton: { value: '仍然开启', action: (): void => {
+        this.cancelPrivacy = undefined;
+        if (this.pageIsCurrent(generation, key) && this.draft === draft) {
+          if (face) draft.faceMosaic = true; else draft.plateMosaic = true;
+        }
       } }
     });
   }
@@ -223,6 +254,19 @@ export struct ChannelSettingsPage {
           }.padding(20).backgroundColor(Palette.card).borderRadius(24).width('100%');
           Column({ space: 14 }) {
             this.heading('连续录像');
+            if (this.draft.privacySupported) {
+              Row({ space: 12 }) {
+                Text('开启车牌马赛克').fontSize(16).fontColor(Palette.text).layoutWeight(1);
+                Toggle({ type: ToggleType.Switch, isOn: $$this.draft.plateMosaic }).enabled(!this.saving && !this.loading)
+                  .onChange((v: boolean): void => this.changePrivacy(false, v)).id('privacy-plate');
+              }.width('100%').constraintSize({ minHeight: 48 });
+              Row({ space: 12 }) {
+                Text('开启人脸马赛克').fontSize(16).fontColor(Palette.text).layoutWeight(1);
+                Toggle({ type: ToggleType.Switch, isOn: $$this.draft.faceMosaic }).enabled(!this.saving && !this.loading)
+                  .onChange((v: boolean): void => this.changePrivacy(true, v)).id('privacy-face');
+              }.width('100%').constraintSize({ minHeight: 48 });
+              Text('由主机处理，预览、事件截图和新录像均会遮挡。').fontSize(13).fontColor(Palette.secondary);
+            } else { Text('请先升级录像机主机以支持马赛克。').fontSize(13).fontColor(Palette.secondary); }
             this.toggleRow('开启录像', this.draft.recording, (value: boolean): void => { if (this.draft) this.draft.recording = value; }, 'recording-enabled');
             Row() {
               Text('片段时长').fontColor(Palette.text).fontSize(16).layoutWeight(1);
